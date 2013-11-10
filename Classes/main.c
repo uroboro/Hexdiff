@@ -29,18 +29,17 @@ void print_usage(int argc, char **argv) {
 	fprintf(stderr, "Usage: %s [options]\n", argv[0]);
 	fprintf(stderr, "Shows two columns of hexadecimal values of two different files.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, " -f, --file	  Set the original file.\n");
+	fprintf(stderr, " -f, --file      Set the original file.\n");
 	fprintf(stderr, " -m, --modified  Set the modified file.\n");
-	fprintf(stderr, " -o, --offset	  Set the starting byte offset.\n");
-	fprintf(stderr, " -l, --length	  Set the length of bytes to compare.\n");
-	fprintf(stderr, " -O, --Offset	  Set the starting difference offset.\n");
-	fprintf(stderr, " -L, --Length	  Set the number of differences to compare.\n");
-	fprintf(stderr, " --linelength	  Set the line length.\n");
-	fprintf(stderr, " -n			  Show a given number of differences.\n");
-	fprintf(stderr, " -N			  Print the number of differences and exit.\n");
-	fprintf(stderr, " -D			  Write differences found to files and exit.\n");
-	fprintf(stderr, " --no-color	  Disables colors.\n");
-	fprintf(stderr, " -h, --help	  Display this help\n");
+	fprintf(stderr, " -o, --offset    Set the starting byte offset.\n");
+	fprintf(stderr, " -l, --length    Set the length of bytes to compare.\n");
+	fprintf(stderr, " -O, --Offset    Set the starting difference offset.\n");
+	fprintf(stderr, " -L, --Length    Set the number of differences to compare.\n");
+	fprintf(stderr, " --linelength    Set the line length.\n");
+	fprintf(stderr, " -N              Print the number of differences and exit.\n");
+	fprintf(stderr, " -D              Write differences found to files and exit.\n");
+	fprintf(stderr, " --no-color      Disables colors.\n");
+	fprintf(stderr, " -h, --help      Display this help\n");
 	fprintf(stderr, "\n");
 //add examples
 	fprintf(stderr, "Source code available at https://github.com/uroboro/Hexdiff\n");
@@ -95,7 +94,7 @@ int main(int argc, char **argv) {
 	};
 	int opt;
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "f:m:o:l:O:L:ND", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "f:m:o:l:O:L:NDh", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'f':
 			if (originalIsSet == 0) {
@@ -152,6 +151,10 @@ int main(int argc, char **argv) {
 
 		case 'D':
 			D_flag = 1;
+			break;
+
+		case 'h':
+			help_flag = 1;
 			break;
 
 /*
