@@ -17,4 +17,4 @@ To-do:
 - support multiple ranges
 
 --------------------------------------
-* will be changed in a future update
+ * will be changed in a future update
