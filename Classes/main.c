@@ -1,49 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <ctype.h>
+//#include <unistd.h>
+//#include <ctype.h>
 #include <getopt.h>
 
-unsigned char *bufferFromFile(char *path, long offset, long length, long *size);
-long saveBufferToFile(char *path, unsigned char *buffer, long length);
-
-//http://ascii-table.com/ansi-escape-sequences.php
-static inline int setColor(int fgc, int bgc, int mode) {
-	return fprintf(stdout, "\033[%d;%d;%dm", mode, fgc, 10+bgc);
-}
-//in case the user interrupts the process (^C)
-void __attribute__((destructor)) reserColors(void) {
-	setColor(0, 0, 0);
-}
-
-void cutFilename(char *path, char **n, char **e);
-
-//pass diffOffset=0 and diffLength=0 for full comparison
-long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength);
-
-//pass diffOffset=0 and diffLength=0 for all differences
-long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength);
-
-void print_usage(int argc, char **argv) {
-	fprintf(stderr, "Usage: %s [options]\n", argv[0]);
-	fprintf(stderr, "Shows two columns of hexadecimal values of two different files.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, " -f, --file      Set the original file.\n");
-	fprintf(stderr, " -m, --modified  Set the modified file.\n");
-	fprintf(stderr, " -o, --offset    Set the starting byte offset.\n");
-	fprintf(stderr, " -l, --length    Set the length of bytes to compare.\n");
-	fprintf(stderr, " -O, --Offset    Set the starting difference offset.\n");
-	fprintf(stderr, " -L, --Length    Set the number of differences to compare.\n");
-	fprintf(stderr, " --linelength    Set the line length.\n");
-	fprintf(stderr, " -N              Print the number of differences and exit.\n");
-	fprintf(stderr, " -D              Write differences found to files and exit.\n");
-	fprintf(stderr, " --no-color      Disables colors.\n");
-	fprintf(stderr, " -h, --help      Display this help\n");
-	fprintf(stderr, "\n");
-//add examples
-	fprintf(stderr, "Source code available at https://github.com/uroboro/Hexdiff\n");
-}
+#include "fileio.h"
+#include "range.h"
+#include "extras.h"
+#include "help.h"
 
 int main(int argc, char **argv) {
 	int r = 0;
@@ -75,6 +40,11 @@ int main(int argc, char **argv) {
 	char N_flag = 0;
 	char D_flag = 0;
 
+	s_range *b_ranges = NULL;
+	long b_count = 0;
+	s_range *d_ranges = NULL;
+	long d_count = 0;
+
 	//process options
 	struct option long_options[] = {
 		/* Flagless options. We distinguish them by their indices. */
@@ -82,8 +52,10 @@ int main(int argc, char **argv) {
 		{"modified",	required_argument,	0, 'm'},
 		{"offset",		required_argument,	0, 'o'},
 		{"length",		required_argument,	0, 'l'},
+		{"range",		required_argument,	0, 'r'},
 		{"Offset",		required_argument,	0, 'O'},
 		{"Length",		required_argument,	0, 'L'},
+		{"Range",		required_argument,	0, 'R'},
 		{"linelength",	required_argument,	0, 'W'},
 		/* Flag options. */
 		{"no-color",	no_argument,		&no_color_flag, 1},
@@ -94,7 +66,7 @@ int main(int argc, char **argv) {
 	};
 	int opt;
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "f:m:o:l:O:L:NDh", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "f:m:o:l:r:O:L:R:NDh", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'f':
 			if (originalIsSet == 0) {
@@ -124,6 +96,25 @@ int main(int argc, char **argv) {
 			}
 			break;
 
+		case 'r':
+			{
+				s_range ra = rangeFromString(optarg);
+//				printf("byte range: %ld:%ld\n", ra.start, ra.stop);
+				if (ra.stop < ra.start) {
+					fprintf(stderr, "invalid range.\n");
+				} else {
+					if (b_count == 0 && b_ranges == NULL) {
+						b_ranges = (s_range *)malloc(sizeof(s_range));
+					} else {
+						b_ranges = (s_range *)realloc(b_ranges, (b_count + 1) * sizeof(s_range));
+					}
+					b_ranges[b_count].start = ra.start;
+					b_ranges[b_count].stop = ra.stop;
+					b_count++;
+				}
+			}
+			break;
+
 		case 'O':
 			if (diffOffsetIsSet == 0) {
 				diffOffsetIsSet = 1;
@@ -135,6 +126,25 @@ int main(int argc, char **argv) {
 			if (diffLengthIsSet == 0) {
 				diffLengthIsSet = 1;
 				diffLength = atol(optarg);
+			}
+			break;
+
+		case 'R':
+			{
+				s_range ra = rangeFromString(optarg);
+//				printf("byte range: %ld:%ld\n", ra.start, ra.stop);
+				if (ra.stop < ra.start) {
+					fprintf(stderr, "invalid range.\n");
+				} else {
+					if (d_count == 0 && d_ranges == NULL) {
+						d_ranges = (s_range *)malloc(sizeof(s_range));
+					} else {
+						d_ranges = (s_range *)realloc(d_ranges, (d_count + 1) * sizeof(s_range));
+					}
+					d_ranges[d_count].start = ra.start;
+					d_ranges[d_count].stop = ra.stop;
+					d_count++;
+				}
 			}
 			break;
 
@@ -165,6 +175,22 @@ int main(int argc, char **argv) {
 		}
 	}
 
+/*
+printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
+*/
+	sortRanges(b_count, b_ranges);
+//printf("sorted ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
+	s_range *t_ranges = consolidateRanges(&b_count, b_ranges);
+	free(b_ranges);
+	b_ranges = t_ranges;
+//printf("cons.  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
+
+	sortRanges(d_count, d_ranges);
+	s_range *T_ranges = consolidateRanges(&d_count, d_ranges);
+	free(d_ranges);
+	d_ranges = T_ranges;
+
+
 	if (debug_flag == 1) {
 		printf("original: %s\n", original);
 		printf("modified: %s\n", modified);
@@ -177,6 +203,8 @@ int main(int argc, char **argv) {
 		printf("help_flag: %d\n", help_flag);
 		printf("N_flag: %d\n", N_flag);
 		printf("D_flag: %d\n", D_flag);
+		printf("b_ranges: [");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);}printf("]\n");
+		printf("d_ranges: [");for(long c=0;c<d_count; c++){printf("{%ld,%ld}", d_ranges[c].start, d_ranges[c].stop);}printf("]\n");
 	}
 
 	if (help_flag) {
@@ -199,6 +227,16 @@ int main(int argc, char **argv) {
 	}
 
 	//end setup
+
+/*
+if (no-buffer) {
+	FILE *fp1 = fopen(original, "r");
+	if (fp1 == NULL) {
+		fprintf(stderr, "Error opening \"%s\"\n", path);
+		return 1;
+	}
+}
+*/
 
 	//load original file
 	long size1;
@@ -229,8 +267,8 @@ int main(int argc, char **argv) {
 
 	//Print differences to files
 	if (D_flag == 1) {
-		differences = makeFiles(original, buffer1, size1, buffer2, size2, diffOffset, diffLength);
-		fprintf(stdout, "Wrote %ld files.\n", differences);
+		differences = makeFiles(original, buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
+		fprintf(stdout, "Wrote %ld differences.\n", differences);
 		return 0;
 	}
 
@@ -248,19 +286,26 @@ int main(int argc, char **argv) {
 
 		//print line for original file
 		for (long j = 0; j < lineLength; j++) {
-			long t = i * lineLength + j;
-			if (t < size1) {
-				//if the other file is smaller or the byte at the same 't' is different, print with a green color
-				if (t >= size2 || buffer1[t] != buffer2[t]) {
-					differences ++;
-					if (colorSupport == 1) setColor(32, 0, 0);
-					fprintf(stdout, " %02x", buffer1[t]);
-					if (colorSupport == 1) setColor(0, 0, 0);
-				} else {
-					fprintf(stdout, " %02x", buffer1[t]);
-				}
+			long t = i * lineLength + j; //absolute offset
+
+			if (t >= size1) {
+				fprintf(stdout, " %c ", ' ');
 			} else {
-				fprintf(stdout, " %s", "  ");
+				char printWithColor;
+				if (t < size2) {
+					if (buffer1[t] != buffer2[t]) {
+						differences ++;
+						printWithColor = valueIsWithinRanges(b_count, b_ranges, t) && valueIsWithinRanges(d_count, d_ranges, differences);
+					} else {
+						printWithColor = 0;
+					}
+				} else {
+					printWithColor = 1;
+				}
+				//if the byte at the same 't' is different, print with a green color
+				if (printWithColor == 1 && colorSupport == 1) setColor(32, 0, 0);
+				fprintf(stdout, " %02x", buffer1[t]);
+				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
 			}
 		}
 
@@ -271,10 +316,62 @@ int main(int argc, char **argv) {
 
 		//print line for modified file
 		for (long j = 0; j < lineLength; j++) {
+			long t = i * lineLength + j; //absolute offset
+
+			if (t >= size2) {
+				fprintf(stdout, " %c ", ' ');
+			} else {
+				char printWithColor;
+				if (t < size1) {
+					if (buffer1[t] != buffer2[t]) {
+//						differences ++; //ignore as first part already incremented this
+						printWithColor = valueIsWithinRanges(b_count, b_ranges, t) && valueIsWithinRanges(d_count, d_ranges, differences);
+					} else {
+						printWithColor = 0;
+					}
+				} else {
+					printWithColor = 1;
+				}
+				//if the byte at the same 't' is different, print with a green color
+				if (printWithColor == 1 && colorSupport == 1) setColor(31, 0, 0);
+				fprintf(stdout, " %02x", buffer2[t]);
+				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
+			}
+		}
+
+/* v2:
+			if (t < size2) {
+				//if the other file is smaller
+				if (t >= size1) {
+					if (colorSupport == 1) setColor(31, 0, 0);
+					fprintf(stdout, " %02x", buffer2[t]);
+					if (colorSupport == 1) setColor(0, 0, 0);
+				} else { //if the byte at the same 't' is different, print with a green color
+					if (buffer1[t] != buffer2[t]) {
+						differences ++;
+						if (valueIsWithinRanges(b_count, b_ranges, t) == 1) {
+							if (colorSupport == 1) setColor(31, 0, 0);
+							fprintf(stdout, " %02x", buffer2[t]);
+							if (colorSupport == 1) setColor(0, 0, 0);
+						} else { //just print
+							fprintf(stdout, " %02x", buffer2[t]);
+						}
+					} else {
+						fprintf(stdout, " %02x", buffer2[t]);
+					}
+				}
+			} else {
+				fprintf(stdout, " %s", "  ");
+			}
+		}
+*/
+/* v1:
+		//print line for modified file
+		for (long j = 0; j < lineLength; j++) {
 			long t = i * lineLength + j;
 			if (t < size2) {
 				//if the other file is smaller or the byte at the same 't' is different, print with a red color
-				if (t >= size1 || buffer1[t] != buffer2[t]) {
+				if ((valueIsWithinRanges(b_count, b_ranges, t) == 1) && (t >= size1 || buffer1[t] != buffer2[t])) {
 //					differences ++;
 					if (colorSupport == 1) setColor(31, 0, 0);
 					fprintf(stdout, " %02x", buffer2[t]);
@@ -286,137 +383,17 @@ int main(int argc, char **argv) {
 				fprintf(stdout, " %s", "  ");
 			}
 		}
-
+*/
 		fprintf(stdout, "\n");
 	}
-
-	free(buffer1);
-	free(buffer2);
 
 	//print final offset
 	if (colorSupport == 1) setColor(36, 0, 0);
 	fprintf(stdout, "%07x\n", (int)(offset + size));
 	if (colorSupport == 1) setColor(0, 0, 0);
 
+	free(buffer1);
+	free(buffer2);
+
 	return r;
-}
-
-unsigned char *bufferFromFile(char *path, long offset, long length, long *size) {
-	FILE *fp = fopen(path, "r");
-	if (fp == NULL) {
-		fprintf(stderr, "Error opening \"%s\"\n", path);
-		*size = 0;
-		return NULL;
-	}
-
-	unsigned char *buffer = (unsigned char *)malloc(sizeof(unsigned char));
-	long bufferSize = 0;
-	//load file, char by char
-	fseek(fp, offset, SEEK_SET);
-	for (long i = 0; ((length > 0)? (i < length):1) && !feof(fp); i++) {
-		buffer = (unsigned char *)realloc(buffer, (i + 1) * sizeof(unsigned char));
-		bufferSize += fread(&buffer[i], sizeof(unsigned char), 1, fp);
-	}
-	fclose(fp);
-
-	*size = bufferSize;
-	return buffer;
-}
-
-long saveBufferToFile(char *path, unsigned char *buffer, long length) {
-	FILE *fp = fopen(path, "w");
-	if (fp == NULL) {
-		fprintf(stderr, "Error opening \"%s\"\n", path);
-		return 0;
-	}
-
-	long size = fwrite(buffer, sizeof(unsigned char), length, fp);
-	fclose(fp);
-	return size;
-}
-
-void cutFilename(char *path, char **n, char **e) {
-	long length = strlen(path);
-
-	long offset = -1;
-	for (long i = length - 1; i >= 0; i--) {
-		if (path[i] == '.') {
-			offset = i;
-			break;
-		}
-	}
-
-	long ns = (offset <= 0)? length:offset;
-	char *name = (char *)malloc((ns + 1) * sizeof(char));
-	for (long i = 0; i < ns; i++) {
-		name[i] = path[i];
-	}
-	name[ns] = 0;
-
-	long es = (offset <= 0)? 0:length-offset;
-	char *extension = (char *)malloc((es + 1) * sizeof(char));
-	for (long i = 0; i < es; i++) {
-		extension[i] = path[ns+i];
-	}
-	extension[es] = 0;
-
-	*n = name;
-	*e = extension;
-	return;
-}
-
-long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength) {
-	long size = (size1 >= size2)? size1:size2;
-	long differences = 0 - diffOffset;
-	for (long i = 0; i < size; i++) {
-		if (i >= size2 || i >= size1) {
-			fprintf(stderr, "Files differ in size.\n");
-			break;
-		}
-		if (buffer1[i] != buffer2[i]) {
-			differences++;
-			if ((diffLength > 0) && (differences == diffLength)) {
-				break;
-			}
-		}
-	}
-	return differences;
-}
-
-long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength) {
-	char *name, *extension;
-	cutFilename(filename, &name, &extension);
-
-	long size = (size1 >= size2)? size1:size2;
-	long differences = 0 - diffOffset;
-	//print file/s
-	for (long i = 0; i < size; i++) {
-		if (buffer1[i] != buffer2[i]) {
-			unsigned char *newBuffer = (unsigned char *)malloc(size1 * sizeof(unsigned char));
-			if (newBuffer == NULL) {
-				fprintf(stderr, "Could not allocate memory for new file.\n");
-				break;
-			}
-			//copy buffer
-			for (long j = 0; j < size1; j++) {
-				newBuffer[j] = buffer1[j];
-			}
-			//swap different byte
-			newBuffer[i] = buffer2[i];
-			char *path;
-			asprintf(&path, "%s_diff-%09x%s", name, i, extension);
-			saveBufferToFile(path, newBuffer, size1);
-			free(path);
-			free(newBuffer);
-
-			differences++;
-			if ((diffLength > 0) && (differences == diffLength)) {
-				break;
-			}
-		}
-	}
-
-	free(name);
-	free(extension);
-	return differences;
 }
