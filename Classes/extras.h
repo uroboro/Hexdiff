@@ -11,9 +11,14 @@ static inline int setColor(int fgc, int bgc, int mode) {
 void cutFilename(char *path, char **n, char **e);
 
 //pass diffOffset=0 and diffLength=0 for full comparison
-long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength);
+long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges);
 
 //save differences to file. works best when b_count!=0 with b_ranges a valid list of s_ranges and/or d_count!=0 with d_ranges a valid list of s_ranges
-long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges);
+long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges);
+
+extern char lineLength, colorSupport, invertSelection;
+extern long _offset;
+
+long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges);
 
 #endif

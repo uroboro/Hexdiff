@@ -39,7 +39,7 @@ void cutFilename(char *path, char **n, char **e) {
 	return;
 }
 
-long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength) {
+long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
 	if (buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
 		return -1;
 	}
@@ -48,11 +48,16 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 		return -1;
 	}
 
-	long differences = 0 - diffOffset;
+	long differences = 0;
 	for (long i = 0; i < size1 && i < size2; i++) {
 		if (buffer1[i] != buffer2[i]) {
 			differences++;
-			if ((diffLength > 0) && (differences == diffLength)) {
+			if (
+ ((differences > diffOffset) == !invertSelection) &&
+ ((differences < diffOffset + diffLength) == !invertSelection) &&
+ (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
+ (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
+) {
 				break;
 			}
 		}
@@ -60,7 +65,7 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 	return differences;
 }
 
-long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
+long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
 	char *name, *extension;
 	if (filename == NULL || buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
 		return 0;
@@ -87,7 +92,12 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 		if (buffer1[i] != buffer2[i]) {
 			differences ++;
 
-			if (valueIsWithinRanges(b_count, b_ranges, i) && valueIsWithinRanges(d_count, d_ranges, differences)) {
+			if (
+ ((differences > diffOffset) == !invertSelection) &&
+ ((differences < diffOffset + diffLength) == !invertSelection) &&
+ (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
+ (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
+) {
 				c_dif ++;
 				//swap different byte
 				newBuffer[i] = buffer2[i];
@@ -99,4 +109,101 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 	free(newBuffer);
 
 	return c_dif;
+}
+
+char lineLength, colorSupport, invertSelection;
+long _offset;
+
+long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
+	if (buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
+		return 0;
+	}
+
+	long size = (size1 >= size2)? size1:size2;
+	long lines = size / lineLength;
+	long differences = 0;
+	//print file/s
+	for (long i = 0; i < lines + 1; i++) {
+		if (i * lineLength >= size1 || i * lineLength >= size2) {
+			break;
+		}
+
+		//print offset
+		if (colorSupport == 1) setColor(36, 0, 0);
+		fprintf(stdout, "%07x", (int)(_offset + i * lineLength));
+		if (colorSupport == 1) setColor(0, 0, 0);
+
+		//print line for original file
+		for (long j = 0; j < lineLength; j++) {
+			long t = i * lineLength + j; //absolute offset
+
+			if (t >= size1) {
+				fprintf(stdout, " %c ", ' ');
+			} else {
+				char printWithColor;
+				if (t < size2) {
+					if (buffer1[t] != buffer2[t]) {
+						differences ++;
+						printWithColor = (
+ ((differences > diffOffset) == !invertSelection) &&
+ ((differences < diffOffset + diffLength) == !invertSelection) &&
+ (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
+ (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
+);
+					} else {
+						printWithColor = 0;
+					}
+				} else {
+					printWithColor = 1;
+				}
+				//if the byte at the same 't' is different, print with a green color
+				if (printWithColor == 1 && colorSupport == 1) setColor(32, 0, 0);
+				fprintf(stdout, " %02x", buffer1[t]);
+				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
+			}
+		}
+
+		//print separator
+		if (colorSupport == 1) setColor(36, 0, 0);
+		fprintf(stdout, " |");
+		if (colorSupport == 1) setColor(0, 0, 0);
+
+		//print line for modified file
+		for (long j = 0; j < lineLength; j++) {
+			long t = i * lineLength + j; //absolute offset
+
+			if (t >= size2) {
+				fprintf(stdout, " %c ", ' ');
+			} else {
+				char printWithColor;
+				if (t < size1) {
+					if (buffer1[t] != buffer2[t]) {
+//						differences ++; //ignore as first part already incremented this
+						printWithColor = (
+ ((differences > diffOffset) == !invertSelection) &&
+ ((differences < diffOffset + diffLength) == !invertSelection) &&
+ (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
+ (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
+);					} else {
+						printWithColor = 0;
+					}
+				} else {
+					printWithColor = 1;
+				}
+				//if the byte at the same 't' is different, print with a green color
+				if (printWithColor == 1 && colorSupport == 1) setColor(31, 0, 0);
+				fprintf(stdout, " %02x", buffer2[t]);
+				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
+			}
+		}
+
+		fprintf(stdout, "\n");
+	}
+
+	//print final offset
+	if (colorSupport == 1) setColor(36, 0, 0);
+	fprintf(stdout, "%07x\n", (int)(_offset + size));
+	if (colorSupport == 1) setColor(0, 0, 0);
+
+	return differences;
 }

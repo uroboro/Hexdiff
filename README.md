@@ -14,6 +14,5 @@ To-do:
 
 - specify output file
 - add examples to help text
-
---------------------------------------
- * will be changed in a future update
+- use a structure to pass data around instead of numerous args?
+- find a workaround for global variables

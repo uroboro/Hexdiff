@@ -20,6 +20,7 @@ void print_usage(int argc, char **argv) {
 
 	fprintf(stderr, " -N              Print the number of differences and exit.\n");
 	fprintf(stderr, " -D              Write differences to file and exit.\n");
+	fprintf(stderr, " -I, --invert    Inverts selection.\n");
 	fprintf(stderr, " --no-color      Disables colors.\n");
 
 	fprintf(stderr, " -h, --help      Display this help\n");

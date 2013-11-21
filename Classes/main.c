@@ -10,6 +10,9 @@
 #include "extras.h"
 #include "help.h"
 
+extern char lineLength, colorSupport, invertSelection;
+extern long _offset;
+
 int main(int argc, char **argv) {
 	int r = 0;
 
@@ -31,9 +34,10 @@ int main(int argc, char **argv) {
 	char diffOffsetIsSet = 0;
 	long diffLength = 0;
 	char diffLengthIsSet = 0;
-	char lineLength = 16 / 2;
+	lineLength = 16 / 2;
 	char lineLengthIsSet = 0;
 	//flags
+	int invert_flag = 0;
 	int no_color_flag = 0;
 	int help_flag = 0;
 	int debug_flag = 0;
@@ -58,6 +62,7 @@ int main(int argc, char **argv) {
 		{"Range",		required_argument,	0, 'R'},
 		{"linelength",	required_argument,	0, 'W'},
 		/* Flag options. */
+		{"invert",		no_argument,		&invert_flag, 1},
 		{"no-color",	no_argument,		&no_color_flag, 1},
 		{"help",		no_argument,		&help_flag, 1},
 		{"DEBUG",		no_argument,		&debug_flag, 1},
@@ -66,7 +71,7 @@ int main(int argc, char **argv) {
 	};
 	int opt;
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "f:m:o:l:r:O:L:R:NDh", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "f:m:o:l:r:O:L:R:INDh", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'f':
 			if (originalIsSet == 0) {
@@ -155,6 +160,10 @@ int main(int argc, char **argv) {
 			}
 			break;
 
+		case 'I':
+			invert_flag = 1;
+			break;
+
 		case 'N':
 			N_flag = 1;
 			break;
@@ -199,6 +208,7 @@ printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ran
 		printf("diffOffset: %ld\n", diffOffset);
 		printf("diffLength: %ld\n", diffLength);
 		printf("lineLength: %d\n", lineLength);
+		printf("invert_flag: %d\n", invert_flag);
 		printf("no_color_flag: %d\n", no_color_flag);
 		printf("help_flag: %d\n", help_flag);
 		printf("N_flag: %d\n", N_flag);
@@ -220,12 +230,13 @@ printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ran
 		fprintf(stderr, "Same file.\n");
 		return 1;
 	}
-	char colorSupport = !no_color_flag;
 	if (D_flag == 1) {
 		offset = 0;
 		length = 0;
 	}
 
+	colorSupport = !no_color_flag;
+	invertSelection = invert_flag;
 	//end setup
 
 /*
@@ -254,143 +265,25 @@ if (no-buffer) {
 		return 1;
 	}
 
-	long size = (size1 >= size2)? size1:size2;
-	long lines = size / lineLength;
 	long differences = 0;
 
 	//Print number of differences
 	if (N_flag == 1) {
-		differences = getNumberOfDiffs(buffer1, size1, buffer2, size2, diffOffset, diffLength);
+		differences = getNumberOfDiffs(buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "%ld\n", differences);
 		return 0;
 	}
 
 	//Print differences to files
 	if (D_flag == 1) {
-		differences = makeFiles(original, buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
+		differences = makeFiles(original, buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "Wrote %ld differences.\n", differences);
 		return 0;
 	}
 
-
-	//print file/s
-	for (long i = 0; i < lines + 1; i++) {
-		if (i * lineLength >= size1 || i * lineLength >= size2) {
-			break;
-		}
-
-		//print offset
-		if (colorSupport == 1) setColor(36, 0, 0);
-		fprintf(stdout, "%07x", (int)(offset + i * lineLength));
-		if (colorSupport == 1) setColor(0, 0, 0);
-
-		//print line for original file
-		for (long j = 0; j < lineLength; j++) {
-			long t = i * lineLength + j; //absolute offset
-
-			if (t >= size1) {
-				fprintf(stdout, " %c ", ' ');
-			} else {
-				char printWithColor;
-				if (t < size2) {
-					if (buffer1[t] != buffer2[t]) {
-						differences ++;
-						printWithColor = valueIsWithinRanges(b_count, b_ranges, t) && valueIsWithinRanges(d_count, d_ranges, differences);
-					} else {
-						printWithColor = 0;
-					}
-				} else {
-					printWithColor = 1;
-				}
-				//if the byte at the same 't' is different, print with a green color
-				if (printWithColor == 1 && colorSupport == 1) setColor(32, 0, 0);
-				fprintf(stdout, " %02x", buffer1[t]);
-				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
-			}
-		}
-
-		//print separator
-		if (colorSupport == 1) setColor(36, 0, 0);
-		fprintf(stdout, " |");
-		if (colorSupport == 1) setColor(0, 0, 0);
-
-		//print line for modified file
-		for (long j = 0; j < lineLength; j++) {
-			long t = i * lineLength + j; //absolute offset
-
-			if (t >= size2) {
-				fprintf(stdout, " %c ", ' ');
-			} else {
-				char printWithColor;
-				if (t < size1) {
-					if (buffer1[t] != buffer2[t]) {
-//						differences ++; //ignore as first part already incremented this
-						printWithColor = valueIsWithinRanges(b_count, b_ranges, t) && valueIsWithinRanges(d_count, d_ranges, differences);
-					} else {
-						printWithColor = 0;
-					}
-				} else {
-					printWithColor = 1;
-				}
-				//if the byte at the same 't' is different, print with a green color
-				if (printWithColor == 1 && colorSupport == 1) setColor(31, 0, 0);
-				fprintf(stdout, " %02x", buffer2[t]);
-				if (printWithColor == 1 && colorSupport == 1) setColor(0, 0, 0);
-			}
-		}
-
-/* v2:
-			if (t < size2) {
-				//if the other file is smaller
-				if (t >= size1) {
-					if (colorSupport == 1) setColor(31, 0, 0);
-					fprintf(stdout, " %02x", buffer2[t]);
-					if (colorSupport == 1) setColor(0, 0, 0);
-				} else { //if the byte at the same 't' is different, print with a green color
-					if (buffer1[t] != buffer2[t]) {
-						differences ++;
-						if (valueIsWithinRanges(b_count, b_ranges, t) == 1) {
-							if (colorSupport == 1) setColor(31, 0, 0);
-							fprintf(stdout, " %02x", buffer2[t]);
-							if (colorSupport == 1) setColor(0, 0, 0);
-						} else { //just print
-							fprintf(stdout, " %02x", buffer2[t]);
-						}
-					} else {
-						fprintf(stdout, " %02x", buffer2[t]);
-					}
-				}
-			} else {
-				fprintf(stdout, " %s", "  ");
-			}
-		}
-*/
-/* v1:
-		//print line for modified file
-		for (long j = 0; j < lineLength; j++) {
-			long t = i * lineLength + j;
-			if (t < size2) {
-				//if the other file is smaller or the byte at the same 't' is different, print with a red color
-				if ((valueIsWithinRanges(b_count, b_ranges, t) == 1) && (t >= size1 || buffer1[t] != buffer2[t])) {
-//					differences ++;
-					if (colorSupport == 1) setColor(31, 0, 0);
-					fprintf(stdout, " %02x", buffer2[t]);
-					if (colorSupport == 1) setColor(0, 0, 0);
-				} else {
-					fprintf(stdout, " %02x", buffer2[t]);
-				}
-			} else {
-				fprintf(stdout, " %s", "  ");
-			}
-		}
-*/
-		fprintf(stdout, "\n");
-	}
-
-	//print final offset
-	if (colorSupport == 1) setColor(36, 0, 0);
-	fprintf(stdout, "%07x\n", (int)(offset + size));
-	if (colorSupport == 1) setColor(0, 0, 0);
+	//Print differences view
+_offset = offset;
+	differences = showDiffs(buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
 
 	free(buffer1);
 	free(buffer2);
