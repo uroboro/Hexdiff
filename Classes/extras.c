@@ -54,7 +54,7 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 			differences++;
 			if (
  ((differences > diffOffset) == !invertSelection) &&
- ((differences < diffOffset + diffLength) == !invertSelection) &&
+ ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 ) {
@@ -94,7 +94,7 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 
 			if (
  ((differences > diffOffset) == !invertSelection) &&
- ((differences < diffOffset + diffLength) == !invertSelection) &&
+ ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 ) {
@@ -146,7 +146,7 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 						differences ++;
 						printWithColor = (
  ((differences > diffOffset) == !invertSelection) &&
- ((differences < diffOffset + diffLength) == !invertSelection) &&
+ ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 );
@@ -180,8 +180,8 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 					if (buffer1[t] != buffer2[t]) {
 //						differences ++; //ignore as first part already incremented this
 						printWithColor = (
- ((differences > diffOffset) == !invertSelection) &&
- ((differences < diffOffset + diffLength) == !invertSelection) &&
+ ((differences >= diffOffset) == !invertSelection) &&
+ ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 );					} else {
