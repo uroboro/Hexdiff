@@ -39,7 +39,7 @@ void cutFilename(char *path, char **n, char **e) {
 	return;
 }
 
-long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
+long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
 	if (buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
 		return -1;
 	}
@@ -53,8 +53,6 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 		if (buffer1[i] != buffer2[i]) {
 			differences++;
 			if (
- ((differences > diffOffset) == !invertSelection) &&
- ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 ) {
@@ -65,17 +63,10 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 	return differences;
 }
 
-long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
-	char *name, *extension;
-	if (filename == NULL || buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
+long makeFiles(char *filepath, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
+	if (filepath == NULL || buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
 		return 0;
 	}
-
-	cutFilename(filename, &name, &extension);
-	char *path;
-	asprintf(&path, "%s_diff%s", name, extension);
-	free(name);
-	free(extension);
 
 	unsigned char *newBuffer = (unsigned char *)malloc(size1 * sizeof(unsigned char));
 	if (newBuffer == NULL) {
@@ -93,8 +84,6 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 			differences ++;
 
 			if (
- ((differences > diffOffset) == !invertSelection) &&
- ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 ) {
@@ -104,8 +93,7 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 			}
 		}
 	}
-	saveBufferToFile(path, newBuffer, size1);
-	free(path);
+	saveBufferToFile(filepath, newBuffer, size1);
 	free(newBuffer);
 
 	return c_dif;
@@ -114,7 +102,7 @@ long makeFiles(char *filename, unsigned char *buffer1, long size1, unsigned char
 char lineLength, colorSupport, invertSelection;
 long _offset;
 
-long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long diffOffset, long diffLength, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
+long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
 	if (buffer1 == NULL || size1 <= 0 || buffer2 == NULL || size2 <= 0) {
 		return 0;
 	}
@@ -145,8 +133,6 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 					if (buffer1[t] != buffer2[t]) {
 						differences ++;
 						printWithColor = (
- ((differences > diffOffset) == !invertSelection) &&
- ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 );
@@ -180,8 +166,6 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 					if (buffer1[t] != buffer2[t]) {
 //						differences ++; //ignore as first part already incremented this
 						printWithColor = (
- ((differences >= diffOffset) == !invertSelection) &&
- ((diffLength > 0)? ((differences < diffOffset + diffLength) == !invertSelection):1) &&
  (valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 );					} else {

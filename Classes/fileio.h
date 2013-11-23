@@ -3,7 +3,7 @@
 
 long long sizeOfFile(const char *path);
 
-unsigned char *bufferFromFile(const char *path, long offset, long length, long *size);
+unsigned char *bufferFromFile(const char *path, long *size);
 
 long saveBufferToFile(char *path, unsigned char *buffer, long length);
 

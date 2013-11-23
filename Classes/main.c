@@ -25,15 +25,15 @@ int main(int argc, char **argv) {
 	char originalIsSet = 0;
 	char *modified = NULL;
 	char modifiedIsSet = 0;
+	char *output = NULL;
+	char outputIsSet = 0;
 	//sizes
+/*
 	long offset = 0;
 	char offsetIsSet = 0;
 	long length = 0;
 	char lengthIsSet = 0;
-	long diffOffset = 0;
-	char diffOffsetIsSet = 0;
-	long diffLength = 0;
-	char diffLengthIsSet = 0;
+*/
 	lineLength = 16 / 2;
 	char lineLengthIsSet = 0;
 	//flags
@@ -54,11 +54,10 @@ int main(int argc, char **argv) {
 		/* Flagless options. We distinguish them by their indices. */
 		{"file",		required_argument,	0, 'f'},
 		{"modified",	required_argument,	0, 'm'},
-		{"offset",		required_argument,	0, 'o'},
-		{"length",		required_argument,	0, 'l'},
+		{"output",		required_argument,	0, 'o'},
+		{"offset",		required_argument,	0, 'O'},
+		{"length",		required_argument,	0, 'L'},
 		{"range",		required_argument,	0, 'r'},
-		{"Offset",		required_argument,	0, 'O'},
-		{"Length",		required_argument,	0, 'L'},
 		{"Range",		required_argument,	0, 'R'},
 		{"linelength",	required_argument,	0, 'W'},
 		/* Flag options. */
@@ -71,7 +70,7 @@ int main(int argc, char **argv) {
 	};
 	int opt;
 	int option_index = 0;
-	while ((opt = getopt_long(argc, argv, "f:m:o:l:r:O:L:R:INDh", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long(argc, argv, "f:m:o:r:R:INDh", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'f':
 			if (originalIsSet == 0) {
@@ -88,6 +87,14 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'o':
+			if (outputIsSet == 0) {
+				outputIsSet = 1;
+				output = optarg;
+			}
+			break;
+
+/*
+		case 'o':
 			if (offsetIsSet == 0) {
 				offsetIsSet = 1;
 				offset = atol(optarg);
@@ -100,7 +107,7 @@ int main(int argc, char **argv) {
 				length = atol(optarg);
 			}
 			break;
-
+*/
 		case 'r':
 			{
 				s_range ra = rangeFromString(optarg);
@@ -117,20 +124,6 @@ int main(int argc, char **argv) {
 					b_ranges[b_count].stop = ra.stop;
 					b_count++;
 				}
-			}
-			break;
-
-		case 'O':
-			if (diffOffsetIsSet == 0) {
-				diffOffsetIsSet = 1;
-				diffOffset = atol(optarg);
-			}
-			break;
-
-		case 'L':
-			if (diffLengthIsSet == 0) {
-				diffLengthIsSet = 1;
-				diffLength = atol(optarg);
 			}
 			break;
 
@@ -184,16 +177,13 @@ int main(int argc, char **argv) {
 		}
 	}
 
-/*
-printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
-*/
+	//process byte ranges
 	sortRanges(b_count, b_ranges);
-//printf("sorted ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
 	s_range *t_ranges = consolidateRanges(&b_count, b_ranges);
 	free(b_ranges);
 	b_ranges = t_ranges;
-//printf("cons.  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);};printf("]\n");
 
+	//process diff ranges
 	sortRanges(d_count, d_ranges);
 	s_range *T_ranges = consolidateRanges(&d_count, d_ranges);
 	free(d_ranges);
@@ -203,10 +193,9 @@ printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ran
 	if (debug_flag == 1) {
 		printf("original: %s\n", original);
 		printf("modified: %s\n", modified);
-		printf("offset: %ld\n", offset);
-		printf("length: %ld\n", length);
-		printf("diffOffset: %ld\n", diffOffset);
-		printf("diffLength: %ld\n", diffLength);
+		printf("output: %s\n", output);
+//		printf("offset: %ld\n", offset);
+//		printf("length: %ld\n", length);
 		printf("lineLength: %d\n", lineLength);
 		printf("invert_flag: %d\n", invert_flag);
 		printf("no_color_flag: %d\n", no_color_flag);
@@ -230,28 +219,23 @@ printf("found  ranges:[");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ran
 		fprintf(stderr, "Same file.\n");
 		return 1;
 	}
-	if (D_flag == 1) {
-		offset = 0;
-		length = 0;
+
+	if (!output) {
+		char *name, *extension;
+		cutFilename(original, &name, &extension);
+		asprintf(&output, "%s_diff%s", name, extension);
+		free(name);
+		free(extension);
 	}
 
 	colorSupport = !no_color_flag;
 	invertSelection = invert_flag;
 	//end setup
 
-/*
-if (no-buffer) {
-	FILE *fp1 = fopen(original, "r");
-	if (fp1 == NULL) {
-		fprintf(stderr, "Error opening \"%s\"\n", path);
-		return 1;
-	}
-}
-*/
 
 	//load original file
 	long size1;
-	unsigned char *buffer1 = bufferFromFile(original, offset, length, &size1);
+	unsigned char *buffer1 = bufferFromFile(original, &size1);
 	if (buffer1 == NULL || size1 == 0) {
 		fprintf(stderr, "Couldn't buffer file: %s.\n", original);
 		return 1;
@@ -259,7 +243,7 @@ if (no-buffer) {
 
 	//load modified file
 	long size2;
-	unsigned char *buffer2 = bufferFromFile(modified, offset, length, &size2);
+	unsigned char *buffer2 = bufferFromFile(modified, &size2);
 	if (buffer2 == NULL || size2 == 0) {
 		fprintf(stderr, "Couldn't buffer file: %s.\n", modified);
 		return 1;
@@ -269,21 +253,22 @@ if (no-buffer) {
 
 	//Print number of differences
 	if (N_flag == 1) {
-		differences = getNumberOfDiffs(buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
+		differences = getNumberOfDiffs(buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "%ld\n", differences);
 		return 0;
 	}
 
 	//Print differences to files
 	if (D_flag == 1) {
-		differences = makeFiles(original, buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
+		differences = makeFiles(output, buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "Wrote %ld differences.\n", differences);
 		return 0;
 	}
 
 	//Print differences view
-_offset = offset;
-	differences = showDiffs(buffer1, size1, buffer2, size2, diffOffset, diffLength, b_count, b_ranges, d_count, d_ranges);
+_offset = 0;
+//_offset = offset;
+	differences = showDiffs(buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 
 	free(buffer1);
 	free(buffer2);

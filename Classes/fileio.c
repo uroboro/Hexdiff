@@ -9,7 +9,7 @@ long long sizeOfFile(const char *path) {
 	return (stat(path, &sr) != 0)? -1:sr.st_size;
 }
 
-unsigned char *bufferFromFile(const char *path, long offset, long length, long *size) {
+unsigned char *bufferFromFile(const char *path, long *size) {
 	FILE *fp = fopen(path, "r");
 	if (fp == NULL) {
 		fprintf(stderr, "Error opening \"%s\"\n", path);
@@ -17,29 +17,18 @@ unsigned char *bufferFromFile(const char *path, long offset, long length, long *
 		return NULL;
 	}
 
-#ifdef CRAPPY && CRAPPY == 1
-	long long fSize = 1;
-#else
 	long long fSize = sizeOfFile(path);
 	if (fSize < 0) {
 		*size = 0;
 		return NULL;
 	}
-#endif
+
 
 	unsigned char *buffer = (unsigned char *)malloc(fSize * sizeof(unsigned char));
 	long bufferSize = 0;
 
-	//load file, char by char
-#ifdef CRAPPY && CRAPPY == 1
-	fseek(fp, offset, SEEK_SET);
-	for (long i = 0; ((length > 0)? (i < length):1) && !feof(fp); i++) {
-		buffer = (unsigned char *)realloc(buffer, (i + 1) * sizeof(unsigned char));
-		bufferSize += fread(&buffer[i], sizeof(unsigned char), 1, fp);
-	}
-#else
+	//load file
 	bufferSize = fread(buffer, sizeof(unsigned char), fSize, fp);
-#endif
 	fclose(fp);
 
 	*size = bufferSize;
