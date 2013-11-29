@@ -25,5 +25,13 @@ void print_usage(int argc, char **argv) {
 	fprintf(stderr, " -h, --help      Display this help\n");
 	fprintf(stderr, "\n");
 //add examples
+/*
+	fprintf(stderr, "Examples:\n");
+	fprintf(stderr, "%s -r 0:10\n", argv[0]);
+	fprintf(stderr, "%s -r 0:10 -r 5:15\n");
+	fprintf(stderr, "%s -R 0:10\n");
+	fprintf(stderr, "%s -R 0:10 -R 5:15\n");
+	fprintf(stderr, "\n");
+*/
 	fprintf(stderr, "Source code available at https://github.com/uroboro/Hexdiff\n");
 }

@@ -49,6 +49,7 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 	}
 
 	long differences = 0;
+	long d = 0;
 	for (long i = 0; i < size1 && i < size2; i++) {
 		if (buffer1[i] != buffer2[i]) {
 			differences++;
@@ -56,11 +57,11 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
  (valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
  (valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
 ) {
-				break;
+				d++;
 			}
 		}
 	}
-	return differences;
+	return d;
 }
 
 long makeFiles(char *filepath, unsigned char *buffer1, long size1, unsigned char *buffer2, long size2, long b_count, s_range *b_ranges, long d_count, s_range *d_ranges) {
