@@ -2,54 +2,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include "range.h"
+#include "extras.h"
 
 s_range rangeFromString(char *string) {
 	s_range r = {0,0};
-	long length = strlen(string);
-	if (string == NULL || length == 0) {
-		return r;
+	char *a, *b;
+	if (splitString(string, &a, &b, RANGE_SEPARATOR) != 0) {
+		r.start = atol(a);
+		r.stop = atol(b);
+		free(a);
+		free(b);
 	}
-	long offset = -1;
-	for (long i = length - 1; i >= 0; i--) {
-		if (string[i] == RANGE_SEPARATOR) {
-			offset = i;
-			break;
-		}
-	}
-	if (offset <= 0) return r;
-/*
-printf("string: %s\n", string);
-printf("        ");
-for (long i = 0; i < offset; i++) {printf(" ");}
-printf("^\n");
-printf("l=%ld,o=%ld,d=%ld", length, offset, length-1-offset);
-*/
-	long l;
-	char *p;
-//printf(" '%c' ",string[offset]);
-	//r.start
-	l = offset;
-	p = (char *)malloc((l + 1) * sizeof(char));
-	for (long i = 0; i < l; i++) {
-		p[i] = string[i];
-	}
-	p[l] = 0;
-//printf("{%ld,%s-", l, p);
-	r.start = atol(p);
-	free(p);
-
-	//r.stop
-	l = length-1-offset;
-	p = (char *)malloc((l + 1) * sizeof(char));
-	for (long i = 0; i < l; i++) {
-		p[i] = string[offset+1+i];
-	}
-	p[l] = 0;
-//printf("%ld,%s}\n", l, p);
-	r.stop = atol(p);
-	free(p);
-
 	return r;
+}
+
+char *stringFromRange(s_range range) {
+	char *s;
+	asprintf(&s, "{%ld,%ld}", range.start, range.stop);
+	return s;
 }
 
 void sortRanges(long size, s_range *list) {

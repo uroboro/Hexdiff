@@ -10,14 +10,13 @@
 #include "extras.h"
 #include "help.h"
 
-extern char lineLength, colorSupport, invertSelection;
+extern char lineLength, colorSupport, colorPrint, invertSelection;
 extern long _offset;
 
 int main(int argc, char **argv) {
 	int r = 0;
 
 	//TO DO:
-	//should add getopts support so it can
 	//	auto detect the optimal size for lineLength?
 	//
 	//filenames
@@ -111,7 +110,7 @@ int main(int argc, char **argv) {
 		case 'r':
 			{
 				s_range ra = rangeFromString(optarg);
-//				printf("byte range: %ld:%ld\n", ra.start, ra.stop);
+//				fprintf(stderr, "byte range: %ld:%ld\n", ra.start, ra.stop);
 				if (ra.stop < ra.start) {
 					fprintf(stderr, "invalid range.\n");
 				} else {
@@ -130,7 +129,7 @@ int main(int argc, char **argv) {
 		case 'R':
 			{
 				s_range ra = rangeFromString(optarg);
-//				printf("byte range: %ld:%ld\n", ra.start, ra.stop);
+//				fprintf(stderr, "byte range: %ld:%ld\n", ra.start, ra.stop);
 				if (ra.stop < ra.start) {
 					fprintf(stderr, "invalid range.\n");
 				} else {
@@ -190,22 +189,6 @@ int main(int argc, char **argv) {
 	d_ranges = T_ranges;
 
 
-	if (debug_flag == 1) {
-		printf("original: %s\n", original);
-		printf("modified: %s\n", modified);
-		printf("output: %s\n", output);
-//		printf("offset: %ld\n", offset);
-//		printf("length: %ld\n", length);
-		printf("lineLength: %d\n", lineLength);
-		printf("invert_flag: %d\n", invert_flag);
-		printf("no_color_flag: %d\n", no_color_flag);
-		printf("help_flag: %d\n", help_flag);
-		printf("N_flag: %d\n", N_flag);
-		printf("D_flag: %d\n", D_flag);
-		printf("b_ranges: [");for(long c=0;c<b_count; c++){printf("{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);}printf("]\n");
-		printf("d_ranges: [");for(long c=0;c<d_count; c++){printf("{%ld,%ld}", d_ranges[c].start, d_ranges[c].stop);}printf("]\n");
-	}
-
 	if (help_flag) {
 		print_usage(argc, argv);
 		return 1;
@@ -222,14 +205,31 @@ int main(int argc, char **argv) {
 
 	if (!output) {
 		char *name, *extension;
-		cutFilename(original, &name, &extension);
-		asprintf(&output, "%s_diff%s", name, extension);
+		splitString(original, &name, &extension, '.');
+		asprintf(&output, "%s_diff.%s", name, extension);
 		free(name);
 		free(extension);
 	}
 
+	colorPrint = 0;
 	colorSupport = !no_color_flag;
 	invertSelection = invert_flag;
+
+	if (debug_flag == 1) {
+		fprintf(stderr, "original: %s\n", original);
+		fprintf(stderr, "modified: %s\n", modified);
+		fprintf(stderr, "output: %s\n", output);
+//		fprintf(stderr, "offset: %ld\n", offset);
+//		fprintf(stderr, "length: %ld\n", length);
+		fprintf(stderr, "lineLength: %d\n", lineLength);
+		fprintf(stderr, "invert_flag: %d\n", invert_flag);
+		fprintf(stderr, "no_color_flag: %d\n", no_color_flag);
+		fprintf(stderr, "help_flag: %d\n", help_flag);
+		fprintf(stderr, "N_flag: %d\n", N_flag);
+		fprintf(stderr, "D_flag: %d\n", D_flag);
+		fprintf(stderr, "b_ranges: [");for(long c=0;c<b_count; c++){fprintf(stderr, "{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);}fprintf(stderr, "]\n");
+		fprintf(stderr, "d_ranges: [");for(long c=0;c<d_count; c++){fprintf(stderr, "{%ld,%ld}", d_ranges[c].start, d_ranges[c].stop);}fprintf(stderr, "]\n");
+	}
 	//end setup
 
 
@@ -246,6 +246,7 @@ int main(int argc, char **argv) {
 	unsigned char *buffer2 = bufferFromFile(modified, &size2);
 	if (buffer2 == NULL || size2 == 0) {
 		fprintf(stderr, "Couldn't buffer file: %s.\n", modified);
+		free(buffer1);
 		return 1;
 	}
 
@@ -255,6 +256,8 @@ int main(int argc, char **argv) {
 	if (N_flag == 1) {
 		differences = getNumberOfDiffs(buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "%ld\n", differences);
+		free(buffer1);
+		free(buffer2);
 		return 0;
 	}
 
@@ -262,12 +265,13 @@ int main(int argc, char **argv) {
 	if (D_flag == 1) {
 		differences = makeFiles(output, buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 		fprintf(stdout, "Wrote %ld differences.\n", differences);
+		free(buffer1);
+		free(buffer2);
 		return 0;
 	}
 
 	//Print differences view
-_offset = 0;
-//_offset = offset;
+	_offset = 0;
 	differences = showDiffs(buffer1, size1, buffer2, size2, b_count, b_ranges, d_count, d_ranges);
 
 	free(buffer1);

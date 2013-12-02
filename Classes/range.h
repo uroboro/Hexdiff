@@ -9,6 +9,7 @@ typedef struct s_range {
 #define RANGE_SEPARATOR ':'
 
 s_range rangeFromString(char *string);
+char *stringFromRange(s_range range);
 
 //bubble sort
 void sortRanges(long size, s_range *list);
