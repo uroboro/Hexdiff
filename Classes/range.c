@@ -22,15 +22,40 @@ char *stringFromRange(s_range range) {
 	return s;
 }
 
+void enumRanges(long count, s_range *ranges) {
+	fprintf(stdout, "[");
+	for (long c = 0; c < count; c++) {
+		fprintf(stdout, "{%ld,%ld}", ranges[c].start, ranges[c].stop);
+	}
+	fprintf(stdout, "]\n");
+}
+
+void addRangeToRanges(s_range **ranges, long *count, s_range ra) {
+//	fprintf(stderr, "byte range: {%ld:%ld}\n", ra.start, ra.stop);
+	if (ra.stop < ra.start) {
+		fprintf(stderr, "invalid range.\n");
+	} else {
+		if (*count == 0 && *ranges == NULL) {
+			*ranges = (s_range *)malloc(sizeof(s_range));
+		} else {
+			*ranges = (s_range *)realloc(*ranges, (*count + 1) * sizeof(s_range));
+		}
+		(*ranges)[*count].start = ra.start;
+		(*ranges)[*count].stop = ra.stop;
+		(*count)++;
+	}
+	return;
+}
+
+
 void sortRanges(long size, s_range *list) {
 	if (size <= 0 || list == NULL) {
 		return;
 	}
-	s_range t;
 	for (long j = 0; j < size - 1; j++) {
 		for (long i = 0; i < size - 1 - j; i++) {
 			if (list[i].start > list[i+1].start) {
-				t = list[i];
+				s_range t = list[i];
 				list[i] = list[i+1];
 				list[i+1] = t;
 			}

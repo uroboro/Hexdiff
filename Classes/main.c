@@ -108,41 +108,11 @@ int main(int argc, char **argv) {
 			break;
 */
 		case 'r':
-			{
-				s_range ra = rangeFromString(optarg);
-//				fprintf(stderr, "byte range: %ld:%ld\n", ra.start, ra.stop);
-				if (ra.stop < ra.start) {
-					fprintf(stderr, "invalid range.\n");
-				} else {
-					if (b_count == 0 && b_ranges == NULL) {
-						b_ranges = (s_range *)malloc(sizeof(s_range));
-					} else {
-						b_ranges = (s_range *)realloc(b_ranges, (b_count + 1) * sizeof(s_range));
-					}
-					b_ranges[b_count].start = ra.start;
-					b_ranges[b_count].stop = ra.stop;
-					b_count++;
-				}
-			}
+			addRangeToRanges(&b_ranges, &b_count, rangeFromString(optarg));
 			break;
 
 		case 'R':
-			{
-				s_range ra = rangeFromString(optarg);
-//				fprintf(stderr, "byte range: %ld:%ld\n", ra.start, ra.stop);
-				if (ra.stop < ra.start) {
-					fprintf(stderr, "invalid range.\n");
-				} else {
-					if (d_count == 0 && d_ranges == NULL) {
-						d_ranges = (s_range *)malloc(sizeof(s_range));
-					} else {
-						d_ranges = (s_range *)realloc(d_ranges, (d_count + 1) * sizeof(s_range));
-					}
-					d_ranges[d_count].start = ra.start;
-					d_ranges[d_count].stop = ra.stop;
-					d_count++;
-				}
-			}
+			addRangeToRanges(&d_ranges, &d_count, rangeFromString(optarg));
 			break;
 
 		case 'W':
@@ -227,8 +197,18 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "help_flag: %d\n", help_flag);
 		fprintf(stderr, "N_flag: %d\n", N_flag);
 		fprintf(stderr, "D_flag: %d\n", D_flag);
-		fprintf(stderr, "b_ranges: [");for(long c=0;c<b_count; c++){fprintf(stderr, "{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);}fprintf(stderr, "]\n");
-		fprintf(stderr, "d_ranges: [");for(long c=0;c<d_count; c++){fprintf(stderr, "{%ld,%ld}", d_ranges[c].start, d_ranges[c].stop);}fprintf(stderr, "]\n");
+		fprintf(stderr, "b_ranges: ");
+		fprintf(stderr, "[");
+		for (long c = 0; c < b_count; c++) {
+			fprintf(stderr, "{%ld,%ld}", b_ranges[c].start, b_ranges[c].stop);
+		}
+		fprintf(stderr, "]\n");
+			fprintf(stderr, "d_ranges: ");
+		fprintf(stderr, "[");
+		for (long c = 0; c < d_count; c++) {
+			fprintf(stderr, "{%ld,%ld}", d_ranges[c].start, d_ranges[c].stop);
+		}
+		fprintf(stderr, "]\n");
 	}
 	//end setup
 

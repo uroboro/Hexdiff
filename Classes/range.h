@@ -11,6 +11,10 @@ typedef struct s_range {
 s_range rangeFromString(char *string);
 char *stringFromRange(s_range range);
 
+void enumRanges(long count, s_range *ranges);
+
+void addRangeToRanges(s_range **ranges, long *count, s_range ra);
+
 //bubble sort
 void sortRanges(long size, s_range *list);
 

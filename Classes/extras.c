@@ -70,10 +70,7 @@ long getNumberOfDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2
 	for (long i = 0; i < size1 && i < size2; i++) {
 		if (buffer1[i] != buffer2[i]) {
 			differences++;
-			if (
-				(valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
-				(valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
-			) {
+			if ((valueIsWithinRanges(b_count, b_ranges, i) & valueIsWithinRanges(d_count, d_ranges, differences)) == !invertSelection) {
 				d++;
 			}
 		}
@@ -98,10 +95,7 @@ long makeFiles(char *filepath, unsigned char *buffer1, long size1, unsigned char
 	for (long i = 0; i < size1 && i < size2; i++) {
 		if (buffer1[i] != buffer2[i]) {
 			differences++;
-			if (
-				(valueIsWithinRanges(b_count, b_ranges, i) == !invertSelection) &&
-				(valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
-			) {
+			if ((valueIsWithinRanges(b_count, b_ranges, i) & valueIsWithinRanges(d_count, d_ranges, differences)) == !invertSelection) {
 				d++;
 				//swap different byte
 				newBuffer[i] = buffer2[i];
@@ -126,6 +120,7 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 	long size = (size1 >= size2)? size1:size2;
 	long lines = size / lineLength;
 	long differences = 0;
+	long d = 0;
 	//print file/s
 	for (long i = 0; i < lines + 1; i++) {
 		if (i * lineLength >= size1 || i * lineLength >= size2) {
@@ -137,6 +132,7 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 		fprintf(stdout, "%07x", (int)(_offset + i * lineLength));
 		if (colorSupport == 1) setColor(0, 0, 0);
 
+		long tempDiffs = differences;
 		//print line for original file
 		for (long j = 0; j < lineLength; j++) {
 			long t = i * lineLength + j; //absolute offset
@@ -144,16 +140,14 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 			if (t >= size1) {
 				fprintf(stdout, " %c ", ' ');
 			} else {
-				char printWithColor;
+				char printWithColor = 0;
 				if (t < size2) {
 					if (buffer1[t] != buffer2[t]) {
-						differences ++;
-						printWithColor = (
-							(valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
-							(valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
-						);
-					} else {
-						printWithColor = 0;
+						tempDiffs++;
+						if ((valueIsWithinRanges(b_count, b_ranges, t) & valueIsWithinRanges(d_count, d_ranges, tempDiffs)) == !invertSelection) {
+							printWithColor = 1;
+							d++;
+						}
 					}
 				} else {
 					printWithColor = 1;
@@ -170,6 +164,7 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 		fprintf(stdout, " |");
 		if (colorSupport == 1) setColor(0, 0, 0);
 
+		tempDiffs = differences;
 		//print line for modified file
 		for (long j = 0; j < lineLength; j++) {
 			long t = i * lineLength + j; //absolute offset
@@ -177,16 +172,14 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 			if (t >= size2) {
 				fprintf(stdout, " %c ", ' ');
 			} else {
-				char printWithColor;
+				char printWithColor = 0;
 				if (t < size1) {
 					if (buffer1[t] != buffer2[t]) {
-//						differences ++; //ignore as first part already incremented this
-						printWithColor = (
-							(valueIsWithinRanges(b_count, b_ranges, t) == !invertSelection) &&
-							(valueIsWithinRanges(d_count, d_ranges, differences) == !invertSelection)
-						);
-					} else {
-						printWithColor = 0;
+						tempDiffs++;
+						if ((valueIsWithinRanges(b_count, b_ranges, t) & valueIsWithinRanges(d_count, d_ranges, tempDiffs)) == !invertSelection) {
+							printWithColor = 1;
+							d++;
+						}
 					}
 				} else {
 					printWithColor = 1;
@@ -198,6 +191,7 @@ long showDiffs(unsigned char *buffer1, long size1, unsigned char *buffer2, long 
 			}
 		}
 
+		differences = tempDiffs;
 		fprintf(stdout, "\n");
 	}
 
