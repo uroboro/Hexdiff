@@ -12,7 +12,5 @@ It supports multiple ranges for bytes and differences.
 
 To-do:
 
-- specify output file
-- add examples to help text
 - use a structure to pass data around instead of numerous args?
 - find a workaround for global variables

@@ -25,13 +25,13 @@ void print_usage(int argc, char **argv) {
 	fprintf(stdout, " -h, --help      Display this help\n");
 	fprintf(stdout, "\n");
 //add examples
-/*
 	fprintf(stdout, "Examples:\n");
+	fprintf(stdout, "%s -f ./original.mov -m ./mutated.mov -N\n", argv[0]);
 	fprintf(stdout, "%s -r 0:10\n", argv[0]);
-	fprintf(stdout, "%s -r 0:10 -r 5:15\n");
-	fprintf(stdout, "%s -R 0:10\n");
-	fprintf(stdout, "%s -R 0:10 -R 5:15\n");
+	fprintf(stdout, "%s -r 0:10 -r 5:15\n", argv[0]);
+	fprintf(stdout, "%s -R 0:10\n", argv[0]);
+	fprintf(stdout, "%s -R 0:10 -R 5:15\n", argv[0]);
 	fprintf(stdout, "\n");
-*/
+
 	fprintf(stdout, "Source code available at https://github.com/uroboro/Hexdiff\n");
 }
